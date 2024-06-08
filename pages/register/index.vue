@@ -40,7 +40,7 @@
           </UiButton>
         </fieldset>
       </form>
-      <p class="text-center text-sm mt-10">
+      <p class="mt-10 text-center text-sm">
         Already have an account?
         <NuxtLink to="/login" class="text-sm font-semibold text-primary hover:underline"
           >Sign in here</NuxtLink
@@ -52,12 +52,14 @@
 
 <script lang="ts">
   import { GoogleAuthProvider } from "firebase/auth";
+  import { doc, getFirestore, setDoc } from "firebase/firestore";
+  import type { UserData } from "~/types/users";
 
   export const googleAuthProvider = new GoogleAuthProvider();
 </script>
 
 <script lang="ts" setup>
-  import { createUserWithEmailAndPassword, updateProfile, signInWithPopup } from "firebase/auth";
+  import { createUserWithEmailAndPassword, signInWithPopup, updateProfile } from "firebase/auth";
 
   definePageMeta({
     middleware: "already-logged-in",
@@ -76,6 +78,22 @@
     try {
       const { user } = await createUserWithEmailAndPassword(auth!, values.email, values.password);
       await updateProfile(user, { displayName: values.firstName + " " + values.lastName });
+      const db = getFirestore();
+      const userData: UserData = {
+        firstName: values.firstName,
+        lastName: values.lastName,
+        email: values.email,
+        avatarUrl: "",
+        categories: [],
+        phone: "",
+        location: {
+          country: "",
+          city: "",
+          adress: "",
+        },
+        createdAt: new Date(),
+      };
+      await setDoc(doc(db, "users", user.uid), { userData });
       useSonner.success("Account created successfully!", {
         id: loading,
       });
@@ -93,7 +111,28 @@
       description: "Creating your account",
     });
     try {
-      await signInWithPopup(auth!, googleAuthProvider);
+      const result = await signInWithPopup(auth!, googleAuthProvider);
+
+      const user = result.user;
+      const { displayName, email, uid } = user;
+      const [firstName, lastName] = displayName ? displayName.split(" ") : ["", ""];
+      const db = getFirestore();
+      const userData: UserData = {
+        firstName: firstName || "",
+        lastName: lastName || "",
+        email: email || "",
+        avatarUrl: "",
+        categories: [],
+        phone: "",
+        location: {
+          country: "",
+          city: "",
+          adress: "",
+        },
+        createdAt: new Date(),
+      };
+
+      await setDoc(doc(db, "users", uid), { userData });
       useSonner.success("Account created successfully!", {
         id: loading,
       });
@@ -104,5 +143,5 @@
         id: loading,
       });
     }
-  }
+  };
 </script>
